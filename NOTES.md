@@ -115,6 +115,13 @@ python3 bench.py           # all 4 models, context sweep 128/1k/4k/8k -> ~18-25 
 Useful flags: `--only 27B` (filter), `--prompt-tokens 128,2048,8192` (context sizes),
 `--gen-tokens 800`, `--runs 5`. Default sweeps **128 / 1k / 4k / 8k** prompt tokens.
 
+A fifth config, **ds4 DeepSeek-V4-Flash** (`~/not-my-repos/ds4`, 91 GB), is included
+but opt-in — run `python3 bench.py --only ds4`. It's measured with the *same*
+trial()/sweep, so numbers line up, but note two things: (1) it's a different, much
+larger model — a whole-setup comparison, not engine-isolated; (2) ds4's real edge is
+warm suffix-only re-prefill (disk KV cache), which this cold-prefill bench does not
+exercise, so its prefill number here is pessimistic vs a real agent session.
+
 `bench.py` launches one server at a time (never two models resident, llama.cpp at
 `-c 16384` so 8k prompt + gen fits), warms it up, and reports medians: **decode t/s**
 (headline), **prefill t/s**, **TTFT**, process **RSS peak**, **system memory delta**

@@ -25,8 +25,12 @@ HOME = os.path.expanduser("~")
 HOST = "127.0.0.1"
 PORT = 8099                      # dedicated bench port, avoids your 8080/8081 servers
 LOGDIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "bench_logs")
+DS4_DIR = f"{HOME}/not-my-repos/ds4"   # ds4-server runs from here (resolves ds4flash.gguf)
 
 # ---- what to benchmark -------------------------------------------------------
+# ds4 is a DIFFERENT (91 GB) model on a different engine — including it is a
+# whole-setup comparison, not engine-isolated. Opt in with --only ds4 so a normal
+# run doesn't load 91 GB. Measured with the identical trial()/sweep as the rest.
 CONFIGS = [
     {"name": "llama.cpp 35B-A3B Q8_0", "engine": "llama",
      "model": f"{HOME}/models/Qwen3.6-35B-A3B-Q8_0.gguf"},
@@ -36,6 +40,8 @@ CONFIGS = [
      "model": "mlx-community/Qwen3.6-35B-A3B-8bit"},
     {"name": "MLX 27B 8bit",           "engine": "mlx",
      "model": "mlx-community/Qwen3.6-27B-8bit"},
+    {"name": "ds4 DeepSeek-V4-Flash q2-q4", "engine": "ds4",
+     "model": "ds4flash.gguf"},
 ]
 
 # ---- memory helpers (system-wide, captures unified GPU buffers) ---------------
@@ -75,7 +81,7 @@ class MemSampler(Thread):
 
 # ---- server lifecycle --------------------------------------------------------
 def kill_stray():
-    for name in ("llama-server", "mlx_lm.server", "mlx_lm"):
+    for name in ("llama-server", "mlx_lm.server", "mlx_lm", "ds4-server"):
         subprocess.run(["pkill", "-f", name], stderr=subprocess.DEVNULL)
     time.sleep(1.0)
 
@@ -83,17 +89,24 @@ def launch(cfg):
     os.makedirs(LOGDIR, exist_ok=True)
     log = open(os.path.join(LOGDIR, cfg["engine"] + "_" +
                             re.sub(r"\W+", "_", cfg["name"]) + ".log"), "w")
+    cwd = None
     if cfg["engine"] == "llama":
         bin_ = shutil.which("llama-server")
         cmd = [bin_, "-m", cfg["model"], "-ngl", "999", "-fa", "on",
                "-c", "16384", "--parallel", "1", "--host", HOST, "--port", str(PORT)]
+    elif cfg["engine"] == "ds4":
+        bin_ = os.path.join(DS4_DIR, "ds4-server")
+        cwd = DS4_DIR                       # so "ds4flash.gguf" symlink resolves
+        cmd = [bin_, "-m", cfg["model"], "--metal", "-c", "16384",
+               "--host", HOST, "--port", str(PORT),
+               "--kv-disk-dir", "/tmp/ds4-kv", "--kv-disk-space-mb", "8192"]
     else:
         bin_ = shutil.which("mlx_lm.server")
         cmd = [bin_, "--model", cfg["model"], "--host", HOST, "--port", str(PORT),
                "--max-tokens", "4096"]
-    if not bin_:
-        raise SystemExit(f"binary for {cfg['engine']} not found on PATH")
-    p = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT)
+    if not bin_ or (cwd and not os.path.exists(bin_)):
+        raise SystemExit(f"binary for {cfg['engine']} not found: {bin_}")
+    p = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, cwd=cwd)
     return p, log
 
 URL = f"http://{HOST}:{PORT}/v1/chat/completions"
@@ -195,9 +208,10 @@ def run(cfg, runs, gen_tokens, prompts):
     print(f"\n=== {cfg['name']} ===", flush=True)
     kill_stray()
     base_sys = sys_used_gb()
-    # MLX server validates the request's model field against what it loaded;
-    # llama-server ignores it. Send the real id for MLX, anything for llama.
-    model_name = cfg["model"] if cfg["engine"] == "mlx" else "bench"
+    # Some servers validate the request's model field against what they loaded
+    # (MLX, ds4); llama-server ignores it. Send the right id where it matters.
+    model_name = {"mlx": cfg["model"], "ds4": "deepseek-v4-flash"}.get(
+        cfg["engine"], "bench")
     proc, log = launch(cfg)
     sampler = MemSampler(proc.pid)
     sampler.start()
