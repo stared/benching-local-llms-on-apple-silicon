@@ -116,8 +116,9 @@ def _post(model_name, messages, max_tokens, stream, timeout, extra=None):
     body = {
         "model": model_name, "messages": messages, "max_tokens": max_tokens,
         "temperature": 0.0, "stream": stream,
-        "stream_options": {"include_usage": True},
     }
+    if stream:
+        body["stream_options"] = {"include_usage": True}
     if extra:
         body.update(extra)
     req = urllib.request.Request(URL, data=json.dumps(body).encode(),
@@ -138,48 +139,35 @@ def wait_ready(proc, model_name, timeout=900):
             time.sleep(1.0)
     raise SystemExit("server did not become ready in time")
 
-# ---- one streaming trial -----------------------------------------------------
-def trial(model_name, prompt, gen_tokens):
-    # Unique prefix per request so neither engine can reuse a cached prefill —
-    # we want COLD prompt-processing speed, measured identically on both.
-    _REQ[0] += 1
-    prompt = f"[request #{_REQ[0]}] " + prompt
+# ---- one trial ---------------------------------------------------------------
+# "A token is a token": we measure TOTAL throughput (reasoning + answer), so we
+# never split content from thinking. Non-streaming avoids fragile per-engine SSE
+# field parsing. A 1-token request isolates prefill; a full request gives
+# prefill+decode; subtracting yields total decode tok/s over ALL generated tokens.
+def _complete(model_name, prompt, max_tokens):
+    """One non-streaming completion. Returns (wall_seconds, usage_dict)."""
     msgs = [{"role": "user", "content": prompt}]
-    t_start = time.time()
-    ttft = None
-    n_chunks = 0
-    usage = None
-    # belt-and-suspenders: explicitly disable llama.cpp prompt cache (MLX ignores it)
-    resp = _post(model_name, msgs, gen_tokens, True, 600, extra={"cache_prompt": False})
-    for raw in resp:
-        line = raw.decode("utf-8", "ignore").strip()
-        if not line.startswith("data:"):
-            continue
-        data = line[5:].strip()
-        if data == "[DONE]":
-            break
-        try:
-            obj = json.loads(data)
-        except json.JSONDecodeError:
-            continue
-        if obj.get("usage"):
-            usage = obj["usage"]
-        ch = obj.get("choices") or [{}]
-        delta = (ch[0].get("delta") or {}).get("content")
-        if delta:
-            if ttft is None:
-                ttft = time.time() - t_start
-            n_chunks += 1
-    t_end = time.time()
-    gen = (usage or {}).get("completion_tokens") or n_chunks
-    ptoks = (usage or {}).get("prompt_tokens") or max(1, len(prompt) // 4)
-    decode_time = max(1e-6, t_end - t_start - (ttft or 0))
+    t0 = time.time()
+    # explicitly disable llama.cpp prompt cache (MLX/ds4 ignore the field)
+    resp = _post(model_name, msgs, max_tokens, False, 600, extra={"cache_prompt": False})
+    usage = json.loads(resp.read().decode("utf-8", "ignore")).get("usage") or {}
+    return time.time() - t0, usage
+
+def trial(model_name, prompt, gen_tokens):
+    # unique prefix per request => neither engine can reuse a cached prefill
+    _REQ[0] += 1
+    t_pre, u1 = _complete(model_name, f"[req {_REQ[0]}] " + prompt, 1)
+    ptoks = u1.get("prompt_tokens") or max(1, len(prompt) // 4)
+    _REQ[0] += 1
+    t_full, u2 = _complete(model_name, f"[req {_REQ[0]}] " + prompt, gen_tokens)
+    gen = u2.get("completion_tokens") or gen_tokens     # every token, reasoning included
+    decode_time = max(1e-6, t_full - t_pre)             # subtract prefill -> pure decode
     return {
-        "ttft": ttft or 0.0,
-        "prefill_tps": ptoks / (ttft or 1e-6),
+        "ttft": t_pre,
+        "prefill_tps": ptoks / max(1e-6, t_pre),
         "decode_tps": (gen - 1) / decode_time if gen > 1 else 0.0,
         "gen_tokens": gen, "prompt_tokens": ptoks,
-        "usage_exact": usage is not None,
+        "usage_exact": bool(u2),
     }
 
 def median(xs):
