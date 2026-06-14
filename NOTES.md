@@ -134,6 +134,38 @@ exercise, so its prefill number here is pessimistic vs a real agent session.
 - Optional: reboot first (10-day uptime had 41k pageouts) for cleanest peak-memory.
 - Expect MLX to edge llama.cpp on decode; llama.cpp competitive on prefill.
 
+## Results (2026-06-14, M5 Max 128 GB, full sweep)
+
+8-bit Q8 throughput, decode = total tok/s (reasoning incl.), median of 3 runs.
+Numbers below are the interactive (128-tok) and long-context (8k) decode rates.
+
+| setup | decode @128 | decode @8k | prefill @8k | RSS |
+|---|--:|--:|--:|--:|
+| **llama.cpp 35B-A3B Q8 +MTP** | **104.6** | **96.8** | 1990 | 45 GB |
+| llama.cpp 35B-A3B Q8 (baseline) | 92.9 | 86.9 | 2462 | 44 GB |
+| MLX 35B-A3B 8bit | 84.5 | 79.4 | 3093 | 37 GB |
+| llama.cpp 27B Q8 +MTP | 31.7 | 29.9 | 521 | 42 GB |
+| llama.cpp 27B Q8 (baseline) | 18.4 | 17.0 | 567 | 41 GB |
+| MLX 27B 8bit | 17.3 | 17.1 | 637 | 28 GB |
+| ds4 DeepSeek-V4-Flash q2-q4 (91 GB) | 33.0 | 27.8 | 366 | 103 GB* |
+
+\* ds4 RSS reads 0.3 GB (mmap); 103 GB is the system-memory footprint.
+
+### Findings
+- **MTP speedup is architecture-dependent:** dense 27B **+75% (≈1.75×, 17→31 t/s)**;
+  MoE 35B-A3B **+12% (87→97 t/s)**. Big forward pass (dense) = more to gain from
+  speculation; cheap 3B-active MoE = less. MTP is lossless (big model verifies).
+- **llama.cpp beats MLX here** for these Qwen models on M5 Max: MoE +10% baseline,
+  +24% with MTP; dense roughly tied until MTP makes llama ≈1.8× MLX. (Opposite of
+  the common "MLX is faster on Mac" assumption — verified, not assumed.)
+- **Daily driver: llama.cpp 35B-A3B Q8 + MTP** — ~100 t/s, fast prefill, barely sags
+  to 8k. Dense 27B is only interactive *with* MTP, and the MoE is still ~3× faster.
+- **ds4** is sane after the total-tok/s fix (~30 t/s, matches its own note) —
+  impressive for a 91 GB frontier-class model, but costs 103 GB resident.
+- **Memory: trust RSS, not the bench's sys-Δ column** (sys-Δ drifts as prior runs
+  free memory). llama trades ~8 GB more RAM than MLX for its speed.
+- MTP slightly lowers prefill and adds ~1 s load — negligible vs the decode win.
+
 ## References
 
 - https://ikyle.me/blog/2026/how-to-setup-a-local-coding-agent-on-macos

@@ -31,11 +31,21 @@ DS4_DIR = f"{HOME}/not-my-repos/ds4"   # ds4-server runs from here (resolves ds4
 # ds4 is a DIFFERENT (91 GB) model on a different engine — including it is a
 # whole-setup comparison, not engine-isolated. Opt in with --only ds4 so a normal
 # run doesn't load 91 GB. Measured with the identical trial()/sweep as the rest.
+# MTP speculative-decoding flags (llama.cpp). The ~/models GGUFs are the unsloth
+# -MTP-GGUF builds, which run as a plain model WITHOUT these flags (= baseline)
+# and enable speculative decoding WITH them — so the same file gives both A/B sides.
+# Sweep the draft depth with --mtp-nmax (1-6); blog's M1 optimum was 3.
+MTP_ARGS = ["--spec-type", "draft-mtp", "--spec-draft-n-max", "3"]
+
 CONFIGS = [
     {"name": "llama.cpp 35B-A3B Q8_0", "engine": "llama",
      "model": f"{HOME}/models/Qwen3.6-35B-A3B-Q8_0.gguf"},
     {"name": "llama.cpp 27B Q8_0",     "engine": "llama",
      "model": f"{HOME}/models/Qwen3.6-27B-Q8_0.gguf"},
+    {"name": "llama.cpp 35B-A3B Q8_0 +MTP", "engine": "llama",
+     "model": f"{HOME}/models/Qwen3.6-35B-A3B-Q8_0.gguf", "extra_args": MTP_ARGS},
+    {"name": "llama.cpp 27B Q8_0 +MTP", "engine": "llama",
+     "model": f"{HOME}/models/Qwen3.6-27B-Q8_0.gguf", "extra_args": MTP_ARGS},
     {"name": "MLX 35B-A3B 8bit",       "engine": "mlx",
      "model": "mlx-community/Qwen3.6-35B-A3B-8bit"},
     {"name": "MLX 27B 8bit",           "engine": "mlx",
@@ -104,6 +114,7 @@ def launch(cfg):
         bin_ = shutil.which("mlx_lm.server")
         cmd = [bin_, "--model", cfg["model"], "--host", HOST, "--port", str(PORT),
                "--max-tokens", "4096"]
+    cmd += cfg.get("extra_args") or []          # e.g. MTP speculative-decoding flags
     if not bin_ or (cwd and not os.path.exists(bin_)):
         raise SystemExit(f"binary for {cfg['engine']} not found: {bin_}")
     p = subprocess.Popen(cmd, stdout=log, stderr=subprocess.STDOUT, cwd=cwd)
@@ -262,7 +273,17 @@ def main():
     ap.add_argument("--prompt-tokens", default="128,1024,4096,8192",
                     help="comma-separated context sizes to sweep")
     ap.add_argument("--only", default="", help="substring filter on config name")
+    ap.add_argument("--mtp-nmax", type=int, default=None,
+                    help="override --spec-draft-n-max on +MTP configs (sweep 1-6)")
     args = ap.parse_args()
+
+    if args.mtp_nmax is not None:                # rewrite draft depth on MTP configs
+        for c in CONFIGS:
+            ea = c.get("extra_args")
+            if ea and "--spec-draft-n-max" in ea:
+                ea = list(ea)
+                ea[ea.index("--spec-draft-n-max") + 1] = str(args.mtp_nmax)
+                c["extra_args"] = ea
 
     cfgs = [c for c in CONFIGS if args.only.lower() in c["name"].lower()]
     if not cfgs:
