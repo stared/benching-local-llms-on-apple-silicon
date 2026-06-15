@@ -166,6 +166,53 @@ Numbers below are the interactive (128-tok) and long-context (8k) decode rates.
   free memory). llama trades ~8 GB more RAM than MLX for its speed.
 - MTP slightly lowers prefill and adds ~1 s load — negligible vs the decode win.
 
+## How our local models compare to dated frontier SOTA (2026-06-15)
+
+Question: a local Mac model today ≈ the cloud frontier of *when*? Answer depends
+heavily on the benchmark — SWE-bench Verified is saturated/contaminated and
+flatters; harder unsaturated benchmarks (HLE, SWE-Pro, Terminal-Bench) place our
+models earlier and reveal a real gap to the live 2026 frontier.
+
+Local model scores are vendor self-reported (Qwen card) unless marked **(AA)** =
+Artificial Analysis independent. Dated match = which frontier model first hit ~that
+score, and when.
+
+| benchmark (↓ less saturated) | 35B-A3B | 27B | DS4-Flash | best local ≈ era |
+|---|--|--|--|--|
+| SWE-bench Verified | 73.4 | 77.2 | ~79–81 | 27B = Claude Sonnet 4.5 (Sep'25); DS4F ≈ Opus 4.5 (Dec'25) |
+| GPQA Diamond | 86.0 | 87.8 | 86.7 **(AA)** | all ≈ Grok 4 / Gemini 2.5 — mid'25 (DeepSeek self-claim 91.3 was inflated) |
+| HLE (hardest) | 21.4 | 24.0 | 27.8 **(AA)** | 35B≈o3 early'25; 27B≈Grok4 Jul'25; DS4F≈GPT-5.2 Jan'26 |
+| SWE-bench Pro | 49.5 | 53.5 | n/a | **on Qwen's refined set, +11 hot vs Scale**; normalized 27B≈42≈Sonnet 4/4.5 mid'25 |
+| Terminal-Bench 2.0 | 51.5 | 59.3 | n/a | 27B = Claude Opus 4.5 (59.3 exact, Dec'25); frontier today 82.7 (GPT-5.5) |
+| LiveCodeBench v6 | 80.4 | 83.9 | 87.5–91.6 | near-frontier, window-dependent |
+| AIME 2026 | 92.7 | 94.1 | n/a | ≈ frontier (math saturating) |
+
+### Dated-frontier placement (synthesis)
+- **Qwen3.6-35B-A3B (fast MoE)** ≈ **early-2025** frontier (o3 / Gemini 2.5 era).
+- **Qwen3.6-27B (quality)** ≈ **mid-2025** frontier (Grok 4 / Sonnet 4.5, ~Jul–Sep'25).
+- **DS4-Flash (full precision)** spans **mid-2025 (GPQA 86.7) → early-2026 (HLE 27.8)**;
+  edges the 27B on paper but not uniformly.
+
+### Load-bearing caveats
+- **SWE-Verified is contaminated/saturated** (OpenAI audit: gold patches in training
+  sets). Its "Sep-2025" read is the rosiest; trust SWE-Pro / HLE more.
+- **SWE-Pro set mismatch:** Qwen reports on their *refined* set, which runs ~+11 pts
+  hot vs Scale's public set (anchored on Opus 4.5: 57.1 vs 45.9). Raw 53.5 does NOT
+  beat Opus 4.5 — normalized it's ~42 ≈ Sonnet 4/4.5.
+- **Vendor inflation, caught:** DeepSeek self-claimed GPQA 91.3; independent AA = 86.7.
+- **DS4-Flash quant trap:** all DS4F numbers are full-precision API. We run the ds4
+  repo's **91 GB 2–4-bit imatrix build** (~30 t/s, 103 GB RAM) — real local quality
+  sits *below* every published number, by an unmeasured amount.
+- **Terminal-Bench is scaffold-sensitive** (Opus 4.6 reads 59→80 by harness).
+
+### Bottom line
+Local-on-a-Mac today ≈ **mid-2025-to-early-2026 frontier** depending on model and axis
+— remarkable for 27–35B on a laptop. But on the unsaturated hard tests the live 2026
+frontier is a clear generation ahead: **HLE ~53 today vs our best ~28 (<½); Terminal-
+Bench 2.0 ~83 vs our 59**. To remove all scaffold/set/quant caveats at once, run the
+benchmarks locally against our actual builds (`bench.py` is throughput-only so far —
+quality evals would be a separate harness).
+
 ## References
 
 - https://ikyle.me/blog/2026/how-to-setup-a-local-coding-agent-on-macos
