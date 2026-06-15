@@ -1,6 +1,7 @@
-# Running local coding models with llama.cpp (vs MLX)
+# Working notes: local coding models with llama.cpp (vs MLX)
 
-Notes for replacing/complementing the MLX setup with llama.cpp on this Mac.
+Ongoing working log — setup commands, methodology, caveats, and full benchmark tables,
+appended over time. For the reader-facing summary see **[README.md](README.md)**.
 
 ## Hardware
 
