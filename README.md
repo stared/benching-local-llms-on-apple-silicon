@@ -35,16 +35,41 @@ apples-to-apples throughput harness.
 
 ## How good is "local" really?
 
-Mapped against *dated* frontier models across 7 benchmarks (full table + caveats in
-[NOTES.md](NOTES.md)):
+Per benchmark: `our score ≈ closest dated frontier model their-score (when)`. Scores link
+to sources; full caveats in [NOTES.md](NOTES.md).
 
-- **Qwen3.6-35B-A3B** ≈ early-2025 frontier (o3 / Gemini 2.5 era)
-- **Qwen3.6-27B** ≈ mid-2025 frontier (Grok 4 / Claude Sonnet 4.5)
-- **DeepSeek-V4-Flash** ≈ mid-2025 → early-2026 (the quantized local build scores lower)
+**Qwen3.6-35B-A3B** (MoE) — early-2025 frontier
+- SWE-bench Verified: [73][qwen] ≈ Claude 4 Sonnet [72.5][swev] (May '25)
+- GPQA Diamond: [86][qwen] ≈ Gemini 2.5 Pro [86.4][gpqa] (early '25)
+- HLE: [21][qwen] ≈ o3 [20.3][hle] (early '25)
+- Terminal-Bench 2.0: [52][qwen], below Claude Opus 4.5 [59.3][qwen] (Dec '25)
+- SWE-bench Pro: [50][qwen]\* → normalized 38, below Claude Sonnet 4 [42.7][swepro]
 
-Reality check on the unsaturated benchmarks: HLE today ~53 vs our best ~28 (less than
-half); Terminal-Bench 2.0 ~83 vs our 59. Impressive for 27–35B on a laptop — but not the
-live frontier.
+**Qwen3.6-27B** (dense) — mid-2025 frontier
+- SWE-bench Verified: [77][qwen] ≈ Claude Sonnet 4.5 [77.2][swev] (Sep '25)
+- GPQA Diamond: [88][qwen] ≈ Grok 4 [87][gpqa] (Jul '25)
+- HLE: [24][qwen] ≈ Grok 4 [24.5][hle] (Jul '25)
+- Terminal-Bench 2.0: [59][qwen] ≈ Claude Opus 4.5 [59.3][qwen] (Dec '25)
+- SWE-bench Pro: [54][qwen]\* → normalized 42 ≈ Claude Sonnet 4.5 [43.6][swepro] (Sep '25)
+
+**DeepSeek-V4-Flash** — mid-2025 → early-2026 *(your quantized build scores lower)*
+- GPQA Diamond: [87][aa] ≈ Grok 4 [87][gpqa] (mid '25)
+- HLE: [28][aa] ≈ GPT-5.2 [27.8][hle] (Jan '26)
+
+\* SWE-bench Pro is on Qwen's *refined* set (+11 vs Scale's public set), so the raw number
+overstates. DeepSeek-V4-Flash's GPQA/HLE are independent (Artificial Analysis); its
+SWE-Verified and Terminal-Bench aren't independently published, so they're left out.
+
+**Reality check:** on the unsaturated benchmarks the live frontier is far ahead — HLE
+today 53 vs our best 28 (less than half); Terminal-Bench 2.0 83 vs our 59. Strong for
+27–35B on a laptop, but not the live frontier.
+
+[qwen]: https://huggingface.co/Qwen/Qwen3.6-27B
+[aa]: https://openrouter.ai/deepseek/deepseek-v4-flash#benchmarks
+[swev]: https://llm-stats.com/benchmarks/swe-bench-verified
+[gpqa]: https://epoch.ai/benchmarks/gpqa-diamond
+[hle]: https://artificialanalysis.ai/evaluations/humanitys-last-exam
+[swepro]: https://labs.scale.com/leaderboard/swe_bench_pro_public
 
 ## Quick start
 
