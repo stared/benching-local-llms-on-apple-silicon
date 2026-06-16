@@ -41,37 +41,43 @@ against the **nearest dated frontier model**. Scores link to the page they're re
 
 #### Qwen3.6-35B-A3B (MoE) — SoTA level of early-mid 2025
 
-| Benchmark | Self-claim | Indep. | Nearest frontier | Score | Released |
-|---|--:|--:|---|--:|---|
-| SWE-bench Verified | [73.4][qwen] | — | Claude 4 Sonnet | [72.7][swev] | May '25 |
-| SWE-bench Pro | [49.5][qwen]\* | — | Claude Sonnet 4 | [42.7][swepro] | May '25 |
-| GPQA Diamond | [86.0][qwen] | — | Grok 4 | [87][gpqa] | Jul '25 |
-| HLE (no-tools) | [21.4][qwen] | — | o3 high | [20.6][hletext] | Apr '25 |
+| Benchmark | Self-claim | Nearest frontier | Score | Released |
+|---|--:|---|--:|---|
+| SWE-bench Verified | [73.4][qwen] | Claude 4 Sonnet | [72.7][swev] | May '25 |
+| SWE-bench Pro | [49.5][qwen]\* | Claude Sonnet 4 | [42.7][swepro] | May '25 |
+| GPQA Diamond | [86.0][qwen] | Grok 4 | [87][gpqa] | Jul '25 |
+| HLE (no-tools) | [21.4][qwen] | o3 high | [20.6][hletext] | Apr '25 |
 
 #### Qwen3.6-27B (dense) — SoTA level of mid 2025
 
-| Benchmark | Self-claim | Indep. | Nearest frontier | Score | Released |
-|---|--:|--:|---|--:|---|
-| SWE-bench Verified | [77.2][qwen] | — | Claude Opus 4.5 | [80.9][swev] | Nov '25 |
-| SWE-bench Pro | [53.5][qwen]\* | — | Claude Sonnet 4.5 | [43.6][swepro] | Sep '25 |
-| GPQA Diamond | [87.8][qwen] | — | Grok 4 | [87][gpqa] | Jul '25 |
-| HLE (no-tools) | [24.0][qwen] | — | o3 → GPT-5 | [20.6][hletext]–[26.3][hletext] | Apr–Aug '25 |
+| Benchmark | Self-claim | Nearest frontier | Score | Released |
+|---|--:|---|--:|---|
+| SWE-bench Verified | [77.2][qwen] | Claude Opus 4.5 | [80.9][swev] | Nov '25 |
+| SWE-bench Pro | [53.5][qwen]\* | Claude Sonnet 4.5 | [43.6][swepro] | Sep '25 |
+| GPQA Diamond | [87.8][qwen] | Grok 4 | [87][gpqa] | Jul '25 |
+| HLE (no-tools) | [24.0][qwen] | GPT-5 | [26.3][hletext] | Aug '25 |
 
 #### DeepSeek-V4-Flash — SoTA level of late 2025 to early 2026
 
-| Benchmark | Self-claim | Indep. | Nearest frontier | Score | Released |
-|---|--:|--:|---|--:|---|
-| SWE-bench Verified | [78.6][dsv4] | — | Claude Opus 4.5 | [80.9][swev] | Nov '25 |
-| SWE-bench Pro | [52.3][dsv4]‡ | — | Claude Opus 4.6 | [51.9][swepro] | Feb '26 |
-| GPQA Diamond | [87.4][dsv4] | [86.7][aa] | Grok 4 | [87][gpqa] | Jul '25 |
-| HLE (no-tools) | [29.4][dsv4] | [27.8][aa] | GPT-5.2 | [28.5][hletext] | Dec '25 |
-| LiveCodeBench v6 | [88.4][dsv4] | — | GPT-5.2 Codex | [88][lcb] | Jan '26 |
+| Benchmark | Self-claim | Nearest frontier | Score | Released |
+|---|--:|---|--:|---|
+| SWE-bench Verified | [78.6][dsv4] | Claude Opus 4.5 | [80.9][swev] | Nov '25 |
+| SWE-bench Pro | [52.3][dsv4]‡ | Claude Opus 4.6 | [51.9][swepro] | Feb '26 |
+| GPQA Diamond | [87.4][dsv4]§ | Grok 4 | [87][gpqa] | Jul '25 |
+| HLE (no-tools) | [29.4][dsv4]§ | GPT-5.2 | [28.5][hletext] | Dec '25 |
+| LiveCodeBench v6 | [88.4][dsv4] | GPT-5.2 Codex | [88][lcb] | Jan '26 |
+
+**Independent cross-check** — Artificial Analysis Intelligence Index (composite of 10 evals):
+DeepSeek-V4-Flash [46][aa] · Qwen3.6-27B [37][aa27] · Qwen3.6-35B-A3B [33][aa35] — same
+ordering as the self-claims. (All per-row figures are vendor self-claim — AA's per-benchmark
+breakdowns are JS-rendered, so only the composite is independently extractable.)
 
 \* Qwen reports SWE-bench Pro on its own [refined set][qwen] (~+11 vs Scale's public set), so
-the nearest-frontier uses the normalized value. All Qwen figures are vendor self-claim —
-OpenRouter/AA pages are JS-rendered, so I couldn't pull independent Qwen numbers. DS4-Flash is
-full-precision High mode (Max mode adds a few points); your 91 GB 2–4-bit quant scores lower.
+the nearest-frontier uses the normalized value. DS4-Flash is full-precision High mode (Max adds
+a few points); your 91 GB 2–4-bit quant scores lower.
 ‡ DS4-Flash's SWE-Pro is on DeepSeek's own scaffold, so the Opus 4.6 match is cross-scaffold.
+§ DS4-Flash independently re-measured by Artificial Analysis: GPQA [86.7][aa], HLE [27.8][aa]
+(just below the official figures).
 
 **Reality check:** the live frontier still leads the unsaturated tests by a wide margin —
 HLE [53.3][hle] (Fable 5, Jun '26) and SWE-bench Pro [59.1][swepro] (GPT-5.4) sit well above
@@ -86,6 +92,8 @@ anything here. Strong for 27–35B on a laptop, not the frontier.
 [dsv4]: https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash
 [lcb]: https://www.vals.ai/benchmarks/lcb
 [hletext]: https://labs.scale.com/leaderboard/humanitys_last_exam_text_only
+[aa27]: https://artificialanalysis.ai/models/qwen3-6-27b
+[aa35]: https://artificialanalysis.ai/models/qwen3-6-35b-a3b
 
 ## Quick start
 
